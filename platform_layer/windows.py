@@ -189,3 +189,78 @@ def collect_installable_apps() -> list[tuple[str, str]]:
 def launch_app(path: str):
     """Launch an app by path, .lnk shortcut, or URI via Windows Shell."""
     os.startfile(path)
+
+
+# ---------------------------------------------------------------------------
+# Foreground app detection (ctypes only; polled by platform_layer.focus.FocusWatcher)
+# ---------------------------------------------------------------------------
+
+import ctypes
+from ctypes import wintypes
+
+from .focus import ForegroundApp
+
+_user32   = ctypes.WinDLL('user32',   use_last_error=True)
+_kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+
+_user32.GetForegroundWindow.restype = wintypes.HWND
+_user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+_user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+_user32.IsWindowVisible.argtypes = [wintypes.HWND]
+_user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
+_kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+_kernel32.OpenProcess.restype = wintypes.HANDLE
+_kernel32.QueryFullProcessImageNameW.argtypes = [
+    wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+_kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+
+_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+_EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+
+def _process_name(pid: int) -> str:
+    """Executable name for pid ('' if it cannot be queried, e.g. protected/elevated)."""
+    h = _kernel32.OpenProcess(_PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not h:
+        return ''
+    try:
+        buf = ctypes.create_unicode_buffer(1024)
+        size = wintypes.DWORD(len(buf))
+        if _kernel32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size)):
+            return os.path.basename(buf.value)
+        return ''
+    finally:
+        _kernel32.CloseHandle(h)
+
+
+def get_foreground_app():
+    """ForegroundApp for the window in front, or None if there is none right now."""
+    hwnd = _user32.GetForegroundWindow()
+    if not hwnd:
+        return None
+    pid = wintypes.DWORD(0)
+    _user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    if not pid.value:
+        return None
+    name = _process_name(pid.value)
+    return ForegroundApp(ids=(name,) if name else (), pid=pid.value)
+
+
+def list_running_apps() -> list[tuple[str, str]]:
+    """[(display_name, match_id), ...] for processes that own a visible titled window."""
+    names: set[str] = set()
+
+    def cb(hwnd, _):
+        try:
+            if _user32.IsWindowVisible(hwnd) and _user32.GetWindowTextLengthW(hwnd) > 0:
+                pid = wintypes.DWORD(0)
+                _user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                name = _process_name(pid.value) if pid.value else ''
+                if name:
+                    names.add(name)
+        except Exception:
+            pass
+        return True
+
+    _user32.EnumWindows(_EnumWindowsProc(cb), 0)
+    return [(n, n) for n in sorted(names, key=str.lower)]

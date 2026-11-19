@@ -8,6 +8,8 @@ from PyQt6.QtWidgets import QApplication
 from hid_layer import SpeedEditor, Key, JogMode
 import app as application
 import config as cfg
+import platform_layer
+from layer_runtime import LayerRuntime
 from actions import hotkey as hotkey_action
 from actions import system as system_action
 
@@ -22,8 +24,8 @@ def main():
     config = window._config
     signals = window.get_signals()
 
-    # Runtime layer stack — bottom is always default
-    _layer_stack = [cfg.DEFAULT_LAYER_ID]
+    # Runtime layer state: focus-matched base layer + manual push stack (see layer_runtime.py)
+    runtime = LayerRuntime(config, signals.layer_runtime_changed.emit)
 
     # Toggle-hold state: button_name → keys_str currently latched
     _toggle_holds: dict = {}
@@ -40,17 +42,9 @@ def main():
             _dial_override = {"mode": mode, "app": app, "sensitivity": sensitivity}
             print(f'[dial] override → mode={mode!r} app={app!r} sensitivity={sensitivity}')
 
-    def _current_layer():
-        return _layer_stack[-1]
-
-    def _push_layer(layer_id):
-        _layer_stack.append(layer_id)
-        signals.layer_runtime_changed.emit(layer_id)
-
-    def _pop_layer():
-        if len(_layer_stack) > 1:
-            _layer_stack.pop()
-        signals.layer_runtime_changed.emit(_current_layer())
+    _current_layer = runtime.current
+    _push_layer = runtime.push
+    _pop_layer = runtime.pop
 
     # Track which keys are currently held (avoid repeat firing)
     _held = set()
@@ -182,7 +176,12 @@ def main():
     t = threading.Thread(target=hid_thread, daemon=True)
     t.start()
 
+    # Foreground-app watcher: its own thread, never touches the HID thread.
+    focus_watcher = platform_layer.FocusWatcher(platform_layer.get_foreground_app, runtime.on_focus)
+    focus_watcher.start()
+
     exit_code = qt_app.exec()
+    focus_watcher.stop()
     if _se:
         _se.close()
     sys.exit(exit_code)

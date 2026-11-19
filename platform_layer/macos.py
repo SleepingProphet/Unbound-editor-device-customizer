@@ -178,3 +178,51 @@ def collect_installable_apps() -> list[tuple[str, str]]:
 def launch_app(path: str):
     """Launch an app bundle, file, or URI via the macOS 'open' command."""
     subprocess.Popen(['open', path])
+
+
+# ---------------------------------------------------------------------------
+# Foreground app detection (polled by platform_layer.focus.FocusWatcher)
+# ---------------------------------------------------------------------------
+
+from .focus import ForegroundApp
+
+
+def _app_ids(app) -> tuple:
+    ids = []
+    for getter in (app.bundleIdentifier, app.localizedName):
+        v = getter()
+        if v:
+            ids.append(str(v))
+    url = app.executableURL()
+    if url is not None:
+        exe = url.lastPathComponent()
+        if exe and str(exe) not in ids:
+            ids.append(str(exe))
+    return tuple(ids)
+
+
+def get_foreground_app():
+    """ForegroundApp for the frontmost application, or None."""
+    from AppKit import NSWorkspace          # pyobjc (installed with pynput on macOS)
+    app = NSWorkspace.sharedWorkspace().frontmostApplication()
+    if app is None:
+        return None
+    return ForegroundApp(ids=_app_ids(app), pid=int(app.processIdentifier()))
+
+
+def list_running_apps() -> list[tuple[str, str]]:
+    """[(display_name, match_id), ...] for regular (Dock) apps; match_id is the bundle id."""
+    try:
+        from AppKit import NSWorkspace, NSApplicationActivationPolicyRegular
+        out = []
+        for app in NSWorkspace.sharedWorkspace().runningApplications():
+            if app.activationPolicy() != NSApplicationActivationPolicyRegular:
+                continue
+            name = str(app.localizedName() or '')
+            ident = str(app.bundleIdentifier() or name)
+            if ident:
+                out.append((name or ident, ident))
+        return sorted(out, key=lambda x: x[0].lower())
+    except Exception as e:
+        print(f'[list_running_apps] {e}')
+        return []

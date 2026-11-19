@@ -340,9 +340,12 @@ class NewLayerDialog(QDialog):
 
 
 class AppPickerDialog(QDialog):
-    def __init__(self, parent=None):
+    """Searchable app list. By default lists installable (Start Menu) apps; pass
+    `items=[(label, value), ...]` to pick from something else, e.g. running apps."""
+
+    def __init__(self, parent=None, items=None, title="Pick an app"):
         super().__init__(parent)
-        self.setWindowTitle("Pick an app")
+        self.setWindowTitle(title)
         self.resize(400, 480)
         self.selected_path = ""
 
@@ -364,7 +367,7 @@ class AppPickerDialog(QDialog):
         btns.rejected.connect(self.reject)
         layout.addWidget(btns)
 
-        self._apps = platform_layer.collect_installable_apps()
+        self._apps = items if items is not None else platform_layer.collect_installable_apps()
         self._populate(self._apps)
 
     def _populate(self, items):
@@ -385,6 +388,76 @@ class AppPickerDialog(QDialog):
         if item:
             self.selected_path = item.data(Qt.ItemDataRole.UserRole)
         super().accept()
+
+
+class LayerMatchDialog(QDialog):
+    """Edit the list of apps that automatically activate a layer when they have focus."""
+
+    def __init__(self, layer_name: str, patterns: list, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Auto-activate '{layer_name}'")
+        self.resize(420, 420)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+
+        layout.addWidget(_wlabel(
+            "This layer becomes active when one of these apps has focus. "
+            "Windows: process name, e.g. spotify.exe. macOS: bundle id or app name, "
+            "e.g. com.spotify.client. Matching ignores case and .exe/.app. "
+            "Layers you push manually sit on top and are cleared when focus changes."))
+
+        self._list = QListWidget()
+        for p in patterns:
+            self._list.addItem(p)
+        layout.addWidget(self._list)
+
+        add_row = QHBoxLayout()
+        self._edit = QLineEdit()
+        self._edit.setPlaceholderText("process name or bundle id")
+        self._edit.returnPressed.connect(self._add_typed)
+        add_btn = QPushButton("Add")
+        add_btn.clicked.connect(self._add_typed)
+        add_row.addWidget(self._edit)
+        add_row.addWidget(add_btn)
+        layout.addLayout(add_row)
+
+        btn_row = QHBoxLayout()
+        pick_btn = QPushButton("Pick running app…")
+        pick_btn.clicked.connect(self._pick_running)
+        rm_btn = QPushButton("Remove selected")
+        rm_btn.clicked.connect(self._remove_selected)
+        btn_row.addWidget(pick_btn)
+        btn_row.addWidget(rm_btn)
+        layout.addLayout(btn_row)
+
+        btns = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        layout.addWidget(btns)
+
+    def _add(self, text: str):
+        text = text.strip()
+        if text and not any(self._list.item(i).text().lower() == text.lower()
+                            for i in range(self._list.count())):
+            self._list.addItem(text)
+
+    def _add_typed(self):
+        self._add(self._edit.text())
+        self._edit.clear()
+
+    def _pick_running(self):
+        dlg = AppPickerDialog(self, items=platform_layer.list_running_apps(),
+                              title="Pick a running app")
+        if dlg.exec() and dlg.selected_path:
+            self._add(dlg.selected_path)
+
+    def _remove_selected(self):
+        for item in self._list.selectedItems():
+            self._list.takeItem(self._list.row(item))
+
+    def patterns(self) -> list:
+        return [self._list.item(i).text() for i in range(self._list.count())]
 
 
 # ---------------------------------------------------------------------------
@@ -1633,6 +1706,12 @@ class MainWindow(QMainWindow):
         self.delete_layer_btn.setStyleSheet(_layer_btn_style)
         self.delete_layer_btn.clicked.connect(self._delete_layer)
         layer_bar.addWidget(self.delete_layer_btn)
+        self.match_layer_btn = QPushButton("Apps…")
+        self.match_layer_btn.setFixedWidth(64)
+        self.match_layer_btn.setToolTip("Apps that automatically activate this layer when focused")
+        self.match_layer_btn.setStyleSheet(_layer_btn_style)
+        self.match_layer_btn.clicked.connect(self._edit_layer_match)
+        layer_bar.addWidget(self.match_layer_btn)
         export_layer_btn = QPushButton("Export…")
         export_layer_btn.setFixedWidth(72)
         export_layer_btn.setToolTip("Export this layer to a JSON file")
@@ -1737,6 +1816,7 @@ class MainWindow(QMainWindow):
         self.layer_tabs.blockSignals(False)
         self.action_panel.refresh_layers(layers)
         self.delete_layer_btn.setEnabled(self._layer_id != cfg.DEFAULT_LAYER_ID)
+        self.match_layer_btn.setEnabled(self._layer_id != cfg.DEFAULT_LAYER_ID)
         self.se_widget.set_layer(self._layer_id)
         self.action_panel.set_layer(self._layer_id, self._config)
 
@@ -1748,6 +1828,7 @@ class MainWindow(QMainWindow):
         self.action_panel.set_layer(self._layer_id, self._config)
         self._refresh_tab_texts()
         self.delete_layer_btn.setEnabled(self._layer_id != cfg.DEFAULT_LAYER_ID)
+        self.match_layer_btn.setEnabled(self._layer_id != cfg.DEFAULT_LAYER_ID)
 
     def _on_runtime_layer_changed(self, layer_id: str):
         """Called (in GUI thread via signal) when the physical device switches layers."""
@@ -1763,6 +1844,7 @@ class MainWindow(QMainWindow):
                 break
         self._refresh_tab_texts()
         self.delete_layer_btn.setEnabled(layer_id != cfg.DEFAULT_LAYER_ID)
+        self.match_layer_btn.setEnabled(layer_id != cfg.DEFAULT_LAYER_ID)
 
     def _new_layer(self):
         existing = cfg.get_layers(self._config)
@@ -1789,6 +1871,15 @@ class MainWindow(QMainWindow):
             cfg.rename_layer(self._config, self._layer_id, name.strip())
             cfg.save(self._config)
             self._populate_layer_tabs()
+
+    def _edit_layer_match(self):
+        if self._layer_id == cfg.DEFAULT_LAYER_ID:
+            return
+        name = self._config["layers"][self._layer_id]["name"]
+        dlg = LayerMatchDialog(name, cfg.get_layer_match(self._config, self._layer_id), self)
+        if dlg.exec():
+            cfg.set_layer_match(self._config, self._layer_id, dlg.patterns())
+            cfg.save(self._config)
 
     def _delete_layer(self):
         current_name = self.layer_tabs.tabText(self.layer_tabs.currentIndex()).lstrip("▶ ")

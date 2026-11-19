@@ -218,6 +218,51 @@ def get_layers(config: dict) -> list[tuple[str, str]]:
     return layers
 
 
+# ---------------------------------------------------------------------------
+# Per-app layer matching ("match": ["spotify.exe", "com.spotify.client", ...])
+# ---------------------------------------------------------------------------
+
+def get_layer_match(config: dict, layer_id: str) -> list:
+    return list(config["layers"].get(layer_id, {}).get("match", []))
+
+
+def set_layer_match(config: dict, layer_id: str, patterns: list):
+    layer = config["layers"].get(layer_id)
+    if layer is None:
+        return
+    cleaned = []
+    for p in patterns:
+        p = str(p).strip()
+        if p and p.lower() not in (c.lower() for c in cleaned):
+            cleaned.append(p)
+    if cleaned and layer_id != DEFAULT_LAYER_ID:
+        layer["match"] = cleaned
+    else:
+        layer.pop("match", None)
+
+
+def any_layer_has_match(config: dict) -> bool:
+    return any(l.get("match") for lid, l in list(config["layers"].items())
+               if lid != DEFAULT_LAYER_ID)
+
+
+def find_layer_for_app(config: dict, app_ids) -> str:
+    """First non-default layer whose match list contains one of app_ids, else default.
+
+    Matching is exact but case-insensitive and ignores a trailing .exe / .app.
+    """
+    from platform_layer.focus import normalize_app_id
+    ids = {normalize_app_id(i) for i in app_ids if i}
+    if ids:
+        for lid, layer in list(config["layers"].items()):
+            if lid == DEFAULT_LAYER_ID:
+                continue
+            for pat in layer.get("match", []):
+                if normalize_app_id(pat) in ids:
+                    return lid
+    return DEFAULT_LAYER_ID
+
+
 def load_profile_into_working(config: dict, layers: dict):
     """Replace working layers with the given layers dict (deep-copied).
     Ensures the default layer always exists.  Does NOT save to disk."""

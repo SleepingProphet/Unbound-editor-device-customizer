@@ -16,6 +16,9 @@ pywin32; sys_platform == "win32"
 pycaw; sys_platform == "win32"
 comtypes; sys_platform == "win32"
 
+# macOS only (AppKit / NSWorkspace for foreground-app detection)
+pyobjc-framework-Cocoa; sys_platform == "darwin"
+
 # Build tooling
 pyinstaller
 pyinstaller-hooks-contrib
