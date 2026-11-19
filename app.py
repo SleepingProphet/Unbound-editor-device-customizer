@@ -10,10 +10,11 @@ from PyQt6.QtWidgets import (
     QGroupBox, QStackedWidget, QSlider,
     QTabWidget, QTabBar, QInputDialog, QMessageBox, QFileDialog, QSpinBox,
     QDialog, QListWidget, QListWidgetItem, QDialogButtonBox,
-    QStyledItemDelegate, QStyle,
+    QStyledItemDelegate, QStyle, QCheckBox, QDoubleSpinBox,
 )
 
 import platform_layer
+import overlay as overlay_mod
 import config as cfg
 from actions import obs as obs_action
 from actions import hotkey as hotkey_action
@@ -25,7 +26,8 @@ from actions import app_switch
 # ---------------------------------------------------------------------------
 
 class Signals(QObject):
-    button_pressed        = pyqtSignal(str)        # key_name
+    button_pressed        = pyqtSignal(str, str)   # (key_name, layer_id that was active at press time)
+    dial_turned           = pyqtSignal(str, str, str)  # (mode jog/shuttle/scroll, direction left/right, action label)
     layer_runtime_changed = pyqtSignal(str)        # layer_id (from HID thread → GUI thread)
     device_status         = pyqtSignal(str)        # status string
     dial_mode_changed     = pyqtSignal(str, str)   # (mode, active_btn_key_name) — "" = normal
@@ -1141,6 +1143,8 @@ class ActionPanel(QWidget):
 
 class SettingsTab(QWidget):
     profile_loaded = pyqtSignal()   # emitted when a profile replaces the working layers
+    overlay_changed = pyqtSignal()  # overlay settings were edited
+    overlay_preview = pyqtSignal()  # user pressed "Preview"
 
     def __init__(self, config: dict, parent=None):
         super().__init__(parent)
@@ -1194,6 +1198,53 @@ class SettingsTab(QWidget):
         self.obs_status = QLabel("Not connected")
         obs_layout.addWidget(self.obs_status, 4, 0, 1, 2)
         layout.addWidget(obs_group)
+
+        # ── Button overlay ────────────────────────────────────────────────────
+        ov = {**cfg.DEFAULT_CONFIG["overlay"], **config.get("overlay", {})}
+        ov_group = QGroupBox("Button overlay")
+        ov_layout = QGridLayout(ov_group)
+        self.ov_enabled = QCheckBox("Show pressed button and action on screen")
+        self.ov_enabled.setChecked(ov["enabled"])
+        ov_layout.addWidget(self.ov_enabled, 0, 0, 1, 2)
+        ov_layout.addWidget(QLabel("Corner:"), 1, 0)
+        self.ov_corner = QComboBox()
+        for label, value in overlay_mod.CORNERS:
+            self.ov_corner.addItem(label, value)
+        self.ov_corner.setCurrentIndex(max(0, self.ov_corner.findData(ov["corner"])))
+        ov_layout.addWidget(self.ov_corner, 1, 1)
+        ov_layout.addWidget(QLabel("Margin (px):"), 2, 0)
+        self.ov_margin = QSpinBox(); self.ov_margin.setRange(0, 500); self.ov_margin.setValue(int(ov["margin"]))
+        ov_layout.addWidget(self.ov_margin, 2, 1)
+        ov_layout.addWidget(QLabel("Visible for (s):"), 3, 0)
+        self.ov_duration = QDoubleSpinBox(); self.ov_duration.setRange(0.3, 30); self.ov_duration.setSingleStep(0.5)
+        self.ov_duration.setValue(float(ov["duration"]))
+        ov_layout.addWidget(self.ov_duration, 3, 1)
+        ov_layout.addWidget(QLabel("Opacity (%):"), 4, 0)
+        self.ov_opacity = QSpinBox(); self.ov_opacity.setRange(10, 100); self.ov_opacity.setValue(int(ov["opacity"]))
+        ov_layout.addWidget(self.ov_opacity, 4, 1)
+        ov_layout.addWidget(QLabel("Font size (pt):"), 5, 0)
+        self.ov_font = QSpinBox(); self.ov_font.setRange(8, 48); self.ov_font.setValue(int(ov["font_size"]))
+        ov_layout.addWidget(self.ov_font, 5, 1)
+        self.ov_preview_btn = QPushButton("Preview")
+        ov_layout.addWidget(self.ov_preview_btn, 6, 0, 1, 2)
+        layout.addWidget(ov_group)
+        for w, sig in ((self.ov_enabled, "toggled"), (self.ov_corner, "currentIndexChanged"),
+                       (self.ov_margin, "valueChanged"), (self.ov_duration, "valueChanged"),
+                       (self.ov_opacity, "valueChanged"), (self.ov_font, "valueChanged")):
+            getattr(w, sig).connect(self._overlay_edited)
+        self.ov_preview_btn.clicked.connect(self.overlay_preview.emit)
+
+    def _overlay_edited(self, *_):
+        self._config["overlay"] = {
+            "enabled": self.ov_enabled.isChecked(),
+            "corner": self.ov_corner.currentData(),
+            "margin": self.ov_margin.value(),
+            "duration": round(self.ov_duration.value(), 2),
+            "opacity": self.ov_opacity.value(),
+            "font_size": self.ov_font.value(),
+        }
+        cfg.save(self._config)
+        self.overlay_changed.emit()
 
     def _connect_obs(self):
         host = self.obs_host.text()
@@ -1781,6 +1832,12 @@ class MainWindow(QMainWindow):
         self.settings_tab = SettingsTab(self._config)
         self.settings_tab.setStyleSheet("background-color: #080d18;")
         self.settings_tab.profile_loaded.connect(self._on_profile_loaded)
+
+        # Overlay: fed by the existing button_pressed path (+ dial_turned for the jog wheel)
+        self.overlay = overlay_mod.PressOverlay(self._config)
+        self.settings_tab.overlay_changed.connect(self.overlay.apply_settings)
+        self.settings_tab.overlay_preview.connect(self._preview_overlay)
+        self.signals.dial_turned.connect(self._on_dial_turned)
         tabs.addTab(self.settings_tab, "Settings")
 
         self.resize(1280, 700)
@@ -1960,8 +2017,17 @@ class MainWindow(QMainWindow):
         self._populate_layer_tabs()
         self.layer_tabs.setCurrentIndex(0)
 
-    def _on_button_pressed(self, key_name: str):
+    def _on_button_pressed(self, key_name: str, layer_id: str):
         self.se_widget.highlight(key_name)
+        label = overlay_mod.describe_action(cfg.get_button(self._config, key_name, layer_id), self._config)
+        name = overlay_mod.pretty_button_name(key_name, self.se_widget._btn_labels.get(key_name, ""))
+        self.overlay.show_press(name, label)
+
+    def _on_dial_turned(self, mode_name: str, direction: str, action_label: str):
+        self.overlay.show_dial(mode_name, direction, action_label)
+
+    def _preview_overlay(self):
+        self.overlay.show_press("Preview", "Hotkey: ctrl+shift+s")
 
     def refresh_button_colors(self):
         self.se_widget.refresh_all_styles()

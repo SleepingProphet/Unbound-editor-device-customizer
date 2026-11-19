@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QApplication
 from hid_layer import SpeedEditor, Key, JogMode
 import app as application
 import config as cfg
+import overlay as overlay_mod
 import platform_layer
 from layer_runtime import LayerRuntime
 from actions import hotkey as hotkey_action
@@ -62,8 +63,9 @@ def main():
                                  is_release=True)
 
         for key_name in newly_pressed:
-            action = cfg.get_button(config, key_name, _current_layer())
-            print(f'[key] {key_name} → {action}  (layer={_current_layer()})')
+            press_layer = _current_layer()   # a Layer: Push below changes it; the overlay needs this one
+            action = cfg.get_button(config, key_name, press_layer)
+            print(f'[key] {key_name} → {action}  (layer={press_layer})')
             if action.get("action") == cfg.ACTION_TOGGLE_HOLD:
                 keys_str = action.get("keys", "")
                 if key_name in _toggle_holds:
@@ -85,7 +87,7 @@ def main():
             else:
                 application.dispatch(key_name, config, _current_layer(),
                                      on_push=_push_layer, on_pop=_pop_layer)
-            signals.button_pressed.emit(key_name)
+            signals.button_pressed.emit(key_name, press_layer)
             window.refresh_button_colors()
 
     import time
@@ -103,6 +105,11 @@ def main():
         sign = 1 if direction == "right" else -1
         source = _dial_override if _dial_override else cfg.get_dial_default(config, _current_layer())
         dial_action = source.get("action") or source.get("mode")
+        if dial_action in overlay_mod.DIAL_ACTION_NAMES:
+            label = overlay_mod.DIAL_ACTION_NAMES[dial_action]
+            if dial_action == "app_vol" and source.get("app"):
+                label += f" ({source['app']})"
+            signals.dial_turned.emit(mode_name, direction, label)
         if dial_action == "sys_vol":
             system_action.adjust_master_volume(sign * system_action.VOL_STEP)
         elif dial_action == "app_vol":

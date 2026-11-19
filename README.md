@@ -54,6 +54,14 @@ Layers are like menus. Each layer has its own set of button mappings and dial se
 
 Layers appear as tabs at the top of the Buttons view. The active layer is marked with an arrow. When the physical device switches layers, the app follows automatically.
 
+**Per-app layers**
+
+Each layer (except Default) has an **Apps…** button: list the apps (Windows process name such as `spotify.exe`; macOS bundle id or app name) that should activate it automatically. The first layer whose list matches the focused app becomes the base layer; otherwise Default. Layers pushed manually with a button sit on top of that base and are cleared when focus moves to another app. If no layer has an app list, the feature is inert. Windows that cannot be queried (e.g. elevated apps) fall back to Default.
+
+**Button overlay**
+
+Settings → Button overlay shows a small click-through, non-focus-stealing popup in a screen corner with the pressed button, its action and the jog wheel direction. Off by default; corner, margin, duration, opacity and font size are adjustable.
+
 **Profiles**
 
 Everything is stored locally in `config.json`. There are no accounts and no cloud sync. Use Settings → Profiles → Export / Import JSON to back up or share all layers, and the Export / Import buttons next to the layer tabs to share a single layer.

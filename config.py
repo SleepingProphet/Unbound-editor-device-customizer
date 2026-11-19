@@ -40,6 +40,14 @@ DEFAULT_CONFIG = {
         "host": "localhost",
         "port": 4455,
     },
+    "overlay": {
+        "enabled": False,        # opt-in: shows the pressed button on screen
+        "corner": "bottom_right",  # top_left | top_right | bottom_left | bottom_right
+        "margin": 24,            # px from the screen edge
+        "duration": 1.5,         # seconds visible before fading out
+        "opacity": 90,           # 10-100 %
+        "font_size": 14,         # pt
+    },
     "layers": {
         DEFAULT_LAYER_ID: {
             "name": "Default",
@@ -105,6 +113,7 @@ def load() -> dict:
     obs_data = dict(data.get("obs", {}))
     legacy_password = obs_data.pop("password", None)
     merged["obs"].update(obs_data)
+    merged["overlay"].update(_clean_overlay(data.get("overlay", {})))
     merged["layers"] = data.get("layers", merged["layers"])
 
     # Migrate: older configs stored the OBS password in plaintext. Move it to the
@@ -114,6 +123,25 @@ def load() -> dict:
             set_obs_password(legacy_password)
         save(merged)
     return merged
+
+
+def _clean_overlay(o: dict) -> dict:
+    """Keep only known, valid overlay settings (a hand-edited config must not break the app)."""
+    d = DEFAULT_CONFIG["overlay"]
+    out = {}
+    if not isinstance(o, dict):
+        return out
+    if isinstance(o.get("enabled"), bool):
+        out["enabled"] = o["enabled"]
+    if o.get("corner") in ("top_left", "top_right", "bottom_left", "bottom_right"):
+        out["corner"] = o["corner"]
+    for key, lo, hi, cast in (("margin", 0, 500, int), ("duration", 0.3, 30, float),
+                              ("opacity", 10, 100, int), ("font_size", 8, 48, int)):
+        try:
+            out[key] = max(lo, min(hi, cast(o[key])))
+        except (KeyError, TypeError, ValueError):
+            pass
+    return out
 
 
 def save(config: dict):
