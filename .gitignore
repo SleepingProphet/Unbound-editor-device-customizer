@@ -196,3 +196,5 @@ cython_debug/
 
 # User configuration — contains personal keybindings, app paths, hotkeys
 config.json
+# User theme
+theme.json
