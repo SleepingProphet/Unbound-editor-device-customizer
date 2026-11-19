@@ -1,0 +1,21 @@
+# Top-level dependencies. Edit this file, then regenerate the lock file:
+#   uv pip compile --universal --generate-hashes --python-version 3.12 \
+#       --no-header -o requirements.txt requirements.in
+# (see README, "Dependencies"). Do not edit requirements.txt by hand.
+
+# Cross-platform
+PyQt6
+hidapi
+pynput
+obsws-python
+screen-brightness-control
+keyring
+
+# Windows only
+pywin32; sys_platform == "win32"
+pycaw; sys_platform == "win32"
+comtypes; sys_platform == "win32"
+
+# Build tooling
+pyinstaller
+pyinstaller-hooks-contrib

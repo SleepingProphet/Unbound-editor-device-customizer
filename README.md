@@ -77,7 +77,7 @@ Create a virtual environment and install dependencies:
 
 ```
 python -m venv .venv
-.venv\Scripts\pip install PyQt6 hidapi pynput pywin32 obsws-python pycaw screen-brightness-control
+.venv\Scripts\python -m pip install --require-hashes -r requirements.txt
 ```
 
 Then run:
@@ -95,7 +95,7 @@ Requires Python 3.12 and [Homebrew](https://brew.sh).
 ```
 brew install python@3.12
 python3.12 -m venv .venv
-.venv/bin/pip install PyQt6 hidapi pynput obsws-python screen-brightness-control
+.venv/bin/python -m pip install --require-hashes -r requirements.txt
 ```
 
 Then run:
@@ -137,3 +137,18 @@ The device requires a challenge-response handshake before it sends input events.
 
 HID authentication algorithm by [Sylvain Munaut](https://github.com/smunaut) (Apache 2.0).
 Claude Code used for styling, debugging, and documentation.
+
+## Dependencies
+
+Top-level dependencies live in `requirements.in` (Windows-only packages use environment markers). `requirements.txt` is a fully pinned, hashed lock file covering Windows, macOS and Linux; install from it with `--require-hashes` as shown above. Don't edit it by hand. To update:
+
+```
+python -m pip install uv
+uv pip compile --universal --generate-hashes --python-version 3.12 --no-header -o requirements.txt requirements.in
+```
+
+Dependabot opens weekly update PRs (pip and GitHub Actions; it understands `requirements.in`, and the lock file must be regenerated with the command above). The `Audit` workflow runs `pip-audit` on the lock file on every push and weekly.
+
+## OBS password
+
+The OBS WebSocket password is stored in the OS keyring (Windows Credential Manager / macOS Keychain), never in `config.json`. Older configs that contain a `password` field are migrated automatically on first start and the field is removed from the file. If no keyring backend is available, the password is kept for the current session only and you will be asked to enter it again next time.

@@ -32,6 +32,8 @@ if IS_WIN:
             'pynput.mouse._win32',
             'screen_brightness_control.windows',
             'obsws_python',
+            'keyring',
+            'keyring.backends',
         ]
     )
 else:  # macOS
@@ -44,6 +46,8 @@ else:  # macOS
             'pynput.mouse._darwin',
             'screen_brightness_control.macos',
             'obsws_python',
+            'keyring',
+            'keyring.backends',
         ]
     )
 

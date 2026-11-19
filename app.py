@@ -1111,7 +1111,8 @@ class SettingsTab(QWidget):
         self.obs_port = QLineEdit(str(config["obs"]["port"]))
         obs_layout.addWidget(self.obs_port, 1, 1)
         obs_layout.addWidget(QLabel("Password:"), 2, 0)
-        self.obs_pass = QLineEdit(config["obs"]["password"])
+        self.obs_pass = QLineEdit(cfg.get_obs_password())
+        self.obs_pass.setPlaceholderText("Stored in the system keyring")
         self.obs_pass.setEchoMode(QLineEdit.EchoMode.Password)
         obs_layout.addWidget(self.obs_pass, 2, 1)
         self.obs_connect_btn = QPushButton("Connect")
@@ -1125,11 +1126,13 @@ class SettingsTab(QWidget):
         host = self.obs_host.text()
         port = int(self.obs_port.text())
         password = self.obs_pass.text()
-        self._config["obs"] = {"host": host, "port": port, "password": password}
+        self._config["obs"] = {"host": host, "port": port}
         cfg.save(self._config)
+        persisted = cfg.set_obs_password(password)
         ok = obs_action.client.connect(host, port, password)
         if ok:
-            self.obs_status.setText("Connected!")
+            self.obs_status.setText("Connected!" if persisted else
+                                    "Connected (no system keyring: password kept for this session only).")
             self.obs_status.setStyleSheet("color: green")
         else:
             self.obs_status.setText("Connection failed.")
@@ -1705,7 +1708,7 @@ class MainWindow(QMainWindow):
 
         # Connect OBS on startup
         obs_cfg = self._config["obs"]
-        obs_action.client.connect(obs_cfg["host"], obs_cfg["port"], obs_cfg["password"])
+        obs_action.client.connect(obs_cfg["host"], obs_cfg["port"], cfg.get_obs_password())
 
     def _tab_label(self, layer_id: str, layer_name: str) -> str:
         """Tab title — ▶ marks whichever layer is currently selected for editing."""

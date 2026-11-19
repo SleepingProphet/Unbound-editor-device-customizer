@@ -39,7 +39,6 @@ DEFAULT_CONFIG = {
     "obs": {
         "host": "localhost",
         "port": 4455,
-        "password": "obsCONNECT"
     },
     "layers": {
         DEFAULT_LAYER_ID: {
@@ -48,6 +47,46 @@ DEFAULT_CONFIG = {
         }
     }
 }
+
+
+# ---------------------------------------------------------------------------
+# OBS password — kept in the OS keyring, never in config.json
+# ---------------------------------------------------------------------------
+
+_KEYRING_SERVICE = "unbound-editor-customizer"
+_KEYRING_OBS_USER = "obs-websocket"
+_session_obs_password = ""   # fallback when no keyring backend is available
+
+
+def get_obs_password() -> str:
+    """Return the stored OBS password ('' if none)."""
+    try:
+        import keyring
+        pw = keyring.get_password(_KEYRING_SERVICE, _KEYRING_OBS_USER)
+        if pw is not None:
+            return pw
+    except Exception as e:
+        print(f'[config] keyring unavailable ({e}); using session-only OBS password')
+    return _session_obs_password
+
+
+def set_obs_password(password: str) -> bool:
+    """Store the OBS password in the keyring. Returns False if only kept for this session."""
+    global _session_obs_password
+    _session_obs_password = password
+    try:
+        import keyring
+        if password:
+            keyring.set_password(_KEYRING_SERVICE, _KEYRING_OBS_USER, password)
+        else:
+            try:
+                keyring.delete_password(_KEYRING_SERVICE, _KEYRING_OBS_USER)
+            except keyring.errors.PasswordDeleteError:
+                pass
+        return True
+    except Exception as e:
+        print(f'[config] could not use keyring ({e}); OBS password kept for this session only')
+        return False
 
 
 def load() -> dict:
@@ -63,14 +102,25 @@ def load() -> dict:
         }
 
     merged = _deep_copy(DEFAULT_CONFIG)
-    merged["obs"].update(data.get("obs", {}))
+    obs_data = dict(data.get("obs", {}))
+    legacy_password = obs_data.pop("password", None)
+    merged["obs"].update(obs_data)
     merged["layers"] = data.get("layers", merged["layers"])
+
+    # Migrate: older configs stored the OBS password in plaintext. Move it to the
+    # keyring and rewrite the file without it.
+    if legacy_password is not None:
+        if legacy_password:
+            set_obs_password(legacy_password)
+        save(merged)
     return merged
 
 
 def save(config: dict):
+    out = dict(config)
+    out["obs"] = {k: v for k, v in config.get("obs", {}).items() if k != "password"}
     with open(CONFIG_FILE, 'w') as f:
-        json.dump(config, f, indent=2)
+        json.dump(out, f, indent=2)
 
 
 def get_button(config: dict, button_name: str, layer_id: str = DEFAULT_LAYER_ID) -> dict:
