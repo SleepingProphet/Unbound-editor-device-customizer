@@ -4,7 +4,7 @@ A desktop app for remapping the buttons on a compatible editor controller to any
 
 ## Download
 
-**[Download the latest build](https://github.com/PuzzleEmptyM/blackmagic-speed-editor-customizer/releases/tag/latest)**
+**[Download the latest build](https://github.com/SleepingProphet/unbound-editor-device-customizer/releases/tag/latest)**
 
 | Platform | File |
 |----------|------|
@@ -53,6 +53,10 @@ Dial mode buttons (System Volume, App Volume, Brightness) are toggles: press onc
 Layers are like menus. Each layer has its own set of button mappings and dial settings. You can map a button to "Layer: Push" to switch all bindings to another layer, and the same button is automatically assigned as "Layer: Back" on the target layer so you can never get stuck.
 
 Layers appear as tabs at the top of the Buttons view. The active layer is marked with an arrow. When the physical device switches layers, the app follows automatically.
+
+**Profiles**
+
+Everything is stored locally in `config.json`. There are no accounts and no cloud sync. Use Settings → Profiles → Export / Import JSON to back up or share all layers, and the Export / Import buttons next to the layer tabs to share a single layer.
 
 **Device connection**
 
