@@ -15,6 +15,8 @@ from PyQt6.QtWidgets import (
 
 import platform_layer
 import overlay as overlay_mod
+import theme
+from theme_tab import ThemeTab
 import config as cfg
 from actions import obs as obs_action
 from actions import hotkey as hotkey_action
@@ -63,223 +65,6 @@ _FLAT_TO_CAT = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Global stylesheet — navy / dark-purple Tailwind-inspired theme
-# ---------------------------------------------------------------------------
-
-GLOBAL_STYLESHEET = """
-/* ── Base ──────────────────────────────────────────────────────────────────── */
-QMainWindow {
-    background-color: #080d18;
-}
-QDialog {
-    background-color: #10172a;
-}
-
-/* ── Tabs (main Buttons / Settings tabs) ───────────────────────────────────── */
-QTabWidget::pane {
-    background-color: #080d18;
-    border: 1px solid #1e2d50;
-    border-radius: 0 10px 10px 10px;
-}
-QTabWidget > QWidget {
-    background-color: #080d18;
-}
-QTabBar::tab {
-    background-color: #10172a;
-    color: #64748b;
-    border: 1px solid #1e2d50;
-    border-bottom: none;
-    border-radius: 8px 8px 0 0;
-    padding: 7px 20px;
-    margin-right: 3px;
-    font-weight: 600;
-    font-size: 13px;
-    letter-spacing: 0.3px;
-}
-QTabBar::tab:selected {
-    background-color: #3730a3;
-    color: #e0e7ff;
-    border-color: #4338ca;
-}
-QTabBar::tab:hover:!selected {
-    background-color: #162040;
-    color: #c7d2fe;
-    border-color: #4338ca;
-}
-
-/* ── Generic QPushButton ───────────────────────────────────────────────────── */
-QPushButton {
-    background-color: #1a2540;
-    color: #c7d2fe;
-    border: 1px solid #2d3f6e;
-    border-radius: 7px;
-    padding: 5px 14px;
-    font-weight: 600;
-    font-size: 13px;
-}
-QPushButton:hover {
-    background-color: #243260;
-    border-color: #6366f1;
-    color: #e0e7ff;
-}
-QPushButton:pressed {
-    background-color: #4338ca;
-    border-color: #818cf8;
-    color: #ffffff;
-}
-QPushButton:disabled {
-    background-color: #0f1525;
-    color: #334155;
-    border-color: #1e2d50;
-}
-
-/* ── QLineEdit ──────────────────────────────────────────────────────────────── */
-QLineEdit {
-    background-color: #10172a;
-    color: #e2e8f0;
-    border: 1px solid #2d3f6e;
-    border-radius: 7px;
-    padding: 5px 10px;
-    selection-background-color: #4338ca;
-    font-size: 13px;
-}
-QLineEdit:focus {
-    border-color: #6366f1;
-    background-color: #131c33;
-}
-QLineEdit:disabled {
-    color: #334155;
-}
-
-/* ── QComboBox ──────────────────────────────────────────────────────────────── */
-QComboBox {
-    background-color: #1a2540;
-    color: #e2e8f0;
-    border: 1px solid #3d5080;
-    border-radius: 7px;
-    padding: 4px 10px;
-    min-height: 28px;
-    font-size: 13px;
-}
-QComboBox:hover  { border-color: #6366f1; background-color: #1e2d50; }
-QComboBox:focus  { border-color: #6366f1; }
-QComboBox::drop-down {
-    border: none;
-    width: 22px;
-}
-QComboBox::down-arrow {
-    width: 0; height: 0;
-    border-left:  5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top:   5px solid #94a3b8;
-    margin-right: 8px;
-}
-
-/* QComboBox popup colors/hover are handled entirely by QPalette (see MainWindow.__init__) */
-
-/* ── QGroupBox ──────────────────────────────────────────────────────────────── */
-QGroupBox {
-    background-color: #10172a;
-    border: 1px solid #1e2d50;
-    border-radius: 12px;
-    margin-top: 16px;
-    padding: 14px 12px 12px 12px;
-    font-weight: 700;
-    font-size: 11px;
-    color: #64748b;
-    letter-spacing: 0.8px;
-}
-QGroupBox::title {
-    subcontrol-origin: margin;
-    subcontrol-position: top left;
-    left: 14px;
-    top: -1px;
-    color: #6366f1;
-    background-color: #10172a;
-    padding: 0 6px;
-    text-transform: uppercase;
-}
-
-/* ── QListWidget ────────────────────────────────────────────────────────────── */
-QListWidget {
-    border: 1px solid #1e2d50;
-    border-radius: 8px;
-    outline: none;
-    font-size: 13px;
-}
-
-/* ── QSlider ────────────────────────────────────────────────────────────────── */
-QSlider::groove:horizontal {
-    height: 4px;
-    background: #1e2d50;
-    border-radius: 2px;
-}
-QSlider::sub-page:horizontal {
-    background: #6366f1;
-    border-radius: 2px;
-}
-QSlider::handle:horizontal {
-    background: #818cf8;
-    border: 2px solid #6366f1;
-    width: 16px;
-    height: 16px;
-    margin: -6px 0;
-    border-radius: 8px;
-}
-QSlider::handle:horizontal:hover {
-    background: #a5b4fc;
-    border-color: #818cf8;
-}
-
-/* ── QLabel ─────────────────────────────────────────────────────────────────── */
-QLabel {
-    color: #cbd5e1;
-    background: transparent;
-}
-
-/* ── QStatusBar ─────────────────────────────────────────────────────────────── */
-QStatusBar {
-    background-color: #10172a;
-    color: #64748b;
-    border-top: 1px solid #1e2d50;
-    font-size: 12px;
-}
-
-/* ── QScrollBar ─────────────────────────────────────────────────────────────── */
-QScrollBar:vertical {
-    background: #10172a;
-    width: 8px;
-    margin: 0;
-}
-QScrollBar::handle:vertical {
-    background: #2d3f6e;
-    border-radius: 4px;
-    min-height: 24px;
-}
-QScrollBar::handle:vertical:hover  { background: #6366f1; }
-QScrollBar::add-line:vertical,
-QScrollBar::sub-line:vertical      { height: 0; }
-
-/* ── QScrollArea / generic pane backgrounds ─────────────────────────────────── */
-QScrollArea { border: none; background: transparent; }
-
-/* ── QSpinBox ───────────────────────────────────────────────────────────────── */
-QSpinBox {
-    background-color: #10172a;
-    color: #e2e8f0;
-    border: 1px solid #2d3f6e;
-    border-radius: 7px;
-    padding: 4px 8px;
-}
-QSpinBox:focus { border-color: #6366f1; }
-
-/* ── QDialogButtonBox ───────────────────────────────────────────────────────── */
-QDialogButtonBox QPushButton { min-width: 80px; }
-
-/* ── QMessageBox ────────────────────────────────────────────────────────────── */
-QMessageBox QLabel { color: #e2e8f0; }
-"""
 
 
 # ---------------------------------------------------------------------------
@@ -470,7 +255,7 @@ def _wlabel(text: str) -> QLabel:
     """QLabel with word-wrap enabled — for description/hint text."""
     lbl = QLabel(text)
     lbl.setWordWrap(True)
-    lbl.setStyleSheet("color: #64748b; font-size: 12px;")
+    theme.bind(lbl, theme.MUTED_LABEL)
     return lbl
 
 
@@ -482,11 +267,11 @@ class _ComboHoverDelegate(QStyledItemDelegate):
         is_hover    = bool(option.state & QStyle.StateFlag.State_MouseOver)
         is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
         if is_hover or is_selected:
-            painter.fillRect(option.rect, QColor("#4338ca"))
-            painter.setPen(QColor("#ffffff"))
+            painter.fillRect(option.rect, theme.qc("accent_strong"))
+            painter.setPen(theme.qc("text_strong"))
         else:
-            painter.fillRect(option.rect, QColor("#1a2540"))
-            painter.setPen(QColor("#e2e8f0"))
+            painter.fillRect(option.rect, theme.qc("button"))
+            painter.setPen(theme.qc("text"))
         text_rect = option.rect.adjusted(10, 0, -4, 0)
         painter.setFont(option.font)
         painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter, index.data() or "")
@@ -525,7 +310,7 @@ class ActionPanel(QWidget):
 
         self.title = QLabel("Select a button to configure")
         self.title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        self.title.setStyleSheet("color: #c7d2fe; padding-bottom: 8px; font-size: 13px;")
+        theme.bind(self.title, theme.TITLE_LABEL)
         layout.addWidget(self.title)
 
         cat_row = QHBoxLayout()
@@ -655,7 +440,7 @@ class ActionPanel(QWidget):
         sv_l.addWidget(self.sys_vol_hw_mode)
         self._sys_vol_mode_desc = QLabel(_DIAL_HW_MODE_DESCS["Jog"])
         self._sys_vol_mode_desc.setWordWrap(True)
-        self._sys_vol_mode_desc.setStyleSheet("color: #64748b; font-size: 11px;")
+        theme.bind(self._sys_vol_mode_desc, theme.HINT_LABEL)
         self.sys_vol_hw_mode.currentTextChanged.connect(
             lambda t: self._sys_vol_mode_desc.setText(_DIAL_HW_MODE_DESCS.get(t, "")))
         sv_l.addWidget(self._sys_vol_mode_desc)
@@ -697,7 +482,7 @@ class ActionPanel(QWidget):
         dap_l.addWidget(self.app_vol_hw_mode)
         self._app_vol_mode_desc = QLabel(_DIAL_HW_MODE_DESCS["Jog"])
         self._app_vol_mode_desc.setWordWrap(True)
-        self._app_vol_mode_desc.setStyleSheet("color: #64748b; font-size: 11px;")
+        theme.bind(self._app_vol_mode_desc, theme.HINT_LABEL)
         self.app_vol_hw_mode.currentTextChanged.connect(
             lambda t: self._app_vol_mode_desc.setText(_DIAL_HW_MODE_DESCS.get(t, "")))
         dap_l.addWidget(self._app_vol_mode_desc)
@@ -730,7 +515,7 @@ class ActionPanel(QWidget):
         bright_l.addWidget(self.brightness_hw_mode)
         self._bright_mode_desc = QLabel(_DIAL_HW_MODE_DESCS["Jog"])
         self._bright_mode_desc.setWordWrap(True)
-        self._bright_mode_desc.setStyleSheet("color: #64748b; font-size: 11px;")
+        theme.bind(self._bright_mode_desc, theme.HINT_LABEL)
         self.brightness_hw_mode.currentTextChanged.connect(
             lambda t: self._bright_mode_desc.setText(_DIAL_HW_MODE_DESCS.get(t, "")))
         bright_l.addWidget(self._bright_mode_desc)
@@ -759,29 +544,7 @@ class ActionPanel(QWidget):
         # Save button
         self.save_btn = QPushButton("Save")
         self.save_btn.setEnabled(False)
-        self.save_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4338ca;
-                color: #ffffff;
-                border: 1px solid #6366f1;
-                border-radius: 7px;
-                padding: 7px 16px;
-                font-weight: 700;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #4f46e5;
-                border-color: #818cf8;
-            }
-            QPushButton:pressed {
-                background-color: #6366f1;
-            }
-            QPushButton:disabled {
-                background-color: #1a2540;
-                color: #334155;
-                border-color: #1e2d50;
-            }
-        """)
+        theme.bind(self.save_btn, theme.SAVE_BUTTON)
         self.save_btn.clicked.connect(self._save)
         layout.addWidget(self.save_btn)
 
@@ -799,7 +562,7 @@ class ActionPanel(QWidget):
 
         dial_title = QLabel("Dial — Default Behavior")
         dial_title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        dial_title.setStyleSheet("color: #c7d2fe; padding-bottom: 8px;")
+        theme.bind(dial_title, theme.DIAL_TITLE_LABEL)
         dlayout.addWidget(dial_title)
         dlayout.addWidget(_wlabel("This action runs whenever the dial is turned and no override button is active."))
         dlayout.addSpacing(6)
@@ -827,7 +590,7 @@ class ActionPanel(QWidget):
         dlayout.addWidget(self.dial_default_hw_mode)
         self._dial_default_mode_desc = QLabel(_DIAL_HW_MODE_DESCS["Jog"])
         self._dial_default_mode_desc.setWordWrap(True)
-        self._dial_default_mode_desc.setStyleSheet("color: #64748b; font-size: 11px;")
+        theme.bind(self._dial_default_mode_desc, theme.HINT_LABEL)
         self.dial_default_hw_mode.currentTextChanged.connect(
             lambda t: self._dial_default_mode_desc.setText(_DIAL_HW_MODE_DESCS.get(t, "")))
         dlayout.addWidget(self._dial_default_mode_desc)
@@ -853,24 +616,7 @@ class ActionPanel(QWidget):
 
         dlayout.addSpacing(8)
         dial_save_btn = QPushButton("Save")
-        dial_save_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4338ca;
-                color: #ffffff;
-                border: 1px solid #6366f1;
-                border-radius: 7px;
-                padding: 7px 16px;
-                font-weight: 700;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #4f46e5;
-                border-color: #818cf8;
-            }
-            QPushButton:pressed {
-                background-color: #6366f1;
-            }
-        """)
+        theme.bind(dial_save_btn, theme.SAVE_BUTTON)
         dial_save_btn.clicked.connect(self._save)
         dlayout.addWidget(dial_save_btn)
 
@@ -1317,22 +1063,6 @@ class SettingsTab(QWidget):
 # Editor device grid widget
 # ---------------------------------------------------------------------------
 
-ACTION_COLORS = {
-    cfg.ACTION_NONE:         "#141c30",  # unassigned — deep navy slate
-    cfg.ACTION_HOTKEY:       "#1e3a8a",  # indigo blue
-    cfg.ACTION_HOLD_KEY:     "#0e4b4b",  # deep teal
-    cfg.ACTION_TOGGLE_HOLD:  "#0a4060",  # dark cyan
-    cfg.ACTION_APP_SWITCH:   "#14532d",  # emerald dark
-    cfg.ACTION_APP_LAUNCH:   "#1a5c35",  # forest green dark
-    cfg.ACTION_OBS_SCENE:    "#7c1d1d",  # deep crimson
-    cfg.ACTION_OBS_TOGGLE:   "#4c1d95",  # deep violet
-    cfg.ACTION_LAYER_PUSH:   "#78350f",  # amber dark
-    cfg.ACTION_LAYER_POP:    "#1e3a6a",  # steel blue
-    cfg.ACTION_DIAL_MODE:    "#3b0f6e",  # ultra-deep purple
-}
-
-SELECTED_BORDER = "2px solid #818cf8"
-DEFAULT_BORDER  = "1px solid #2d3f6e"
 
 SUBCOL_W    = 44
 SPACING     = 4
@@ -1444,13 +1174,13 @@ def _apply_btn_style(btn: QPushButton, key_name: str, original_label: str,
                      dial_active: bool = False):
     action = cfg.get_button(config, key_name, layer_id)
     atype = action.get("action", cfg.ACTION_NONE)
-    color = "#5b21b6" if dial_active else ACTION_COLORS.get(atype, "#141c30")
-    border = SELECTED_BORDER if btn.isChecked() else DEFAULT_BORDER
+    color = theme.c("dial_button_active") if dial_active else theme.action_color(atype)
+    border = theme.selected_border() if btn.isChecked() else theme.default_border()
     btn.setText(_get_btn_display_label(key_name, original_label, config, layer_id))
     btn.setStyleSheet(f"""
         QPushButton {{
             background-color: {color};
-            color: #e2e8f0;
+            color: {theme.c('text')};
             border: {border};
             border-radius: 7px;
             font-size: 9px;
@@ -1458,8 +1188,8 @@ def _apply_btn_style(btn: QPushButton, key_name: str, original_label: str,
             font-family: "Segoe UI", Arial, sans-serif;
             letter-spacing: 0.3px;
         }}
-        QPushButton:checked {{ border: {SELECTED_BORDER}; background-color: {color}; }}
-        QPushButton:hover   {{ background-color: rgba(99, 102, 241, 0.28); border-color: #6366f1; }}
+        QPushButton:checked {{ border: {theme.selected_border()}; background-color: {color}; }}
+        QPushButton:hover   {{ background-color: rgba({theme.rgb('accent')}, 0.28); border-color: {theme.c('accent')}; }}
     """)
 
 
@@ -1491,8 +1221,8 @@ class DialCircle(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         margin = 6
         rect = self.rect().adjusted(margin, margin, -margin, -margin)
-        fill = QColor("#4c1d95") if self._active else QColor("#141c30")
-        border_color = QColor("#818cf8") if self._selected else QColor("#2d3f6e")
+        fill = theme.qc("dial_fill_active") if self._active else QColor(theme.action_color(cfg.ACTION_NONE))
+        border_color = theme.qc("accent_light") if self._selected else theme.qc("button_border")
         pen_width = 3 if self._selected else 2
         painter.setBrush(QBrush(fill))
         painter.setPen(QPen(border_color, pen_width))
@@ -1500,12 +1230,12 @@ class DialCircle(QWidget):
         # Inner ring for depth
         inner_margin = 14
         inner_rect = rect.adjusted(inner_margin, inner_margin, -inner_margin, -inner_margin)
-        ring_color = QColor("#6366f1") if self._active else QColor("#1e2d50")
+        ring_color = theme.qc("accent") if self._active else theme.qc("border")
         painter.setBrush(QBrush(QColor(0, 0, 0, 0)))
         painter.setPen(QPen(ring_color, 2))
         painter.drawEllipse(inner_rect)
         # Label
-        painter.setPen(QPen(QColor("#c7d2fe") if self._active else QColor("#64748b")))
+        painter.setPen(QPen(theme.qc("text_title") if self._active else theme.qc("text_muted")))
         font = QFont("Segoe UI", 9, QFont.Weight.Bold)
         painter.setFont(font)
         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "DIAL")
@@ -1513,6 +1243,21 @@ class DialCircle(QWidget):
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
+
+
+class _DeviceOverlay(QWidget):
+    """Transparent, mouse-transparent layer that paints the theme's device overlay image."""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        theme.paint_image(p, self.rect(), "device")
+        p.end()
 
 
 class SpeedEditorWidget(QWidget):
@@ -1549,6 +1294,26 @@ class SpeedEditorWidget(QWidget):
         layout.addWidget(right_col)
 
         layout.addStretch()
+
+        # Optional image above the device graphic (click-through, painted over the buttons)
+        self._device_overlay = _DeviceOverlay(self)
+        self._device_overlay.setGeometry(self.rect())
+        self._device_overlay.raise_()
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        theme.paint_image(p, self.rect(), "editor", radius=6)
+        p.end()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._device_overlay.setGeometry(self.rect())
+        self._device_overlay.raise_()
+
+    def theme_changed(self):
+        self._dial_circle.update()
+        self._device_overlay.update()
+        self.update()
 
     def _make_grid(self, defs, num_subcols, spacer_row=None):
         widget = QWidget()
@@ -1652,35 +1417,17 @@ class MainWindow(QMainWindow):
         self.signals = Signals()
         self.signals.button_pressed.connect(self._on_button_pressed)
 
-        from PyQt6.QtWidgets import QApplication
-        from PyQt6.QtGui import QPalette, QColor
-        app_instance = QApplication.instance()
-        app_instance.setStyleSheet(GLOBAL_STYLESHEET)
-
-        # Fusion style ignores QSS ::item:hover — it uses QPalette::Highlight instead.
-        # Set the palette so dropdown hover/selection uses our indigo accent.
-        pal = app_instance.palette()
-        for group in (QPalette.ColorGroup.Active, QPalette.ColorGroup.Inactive):
-            pal.setColor(group, QPalette.ColorRole.Highlight,        QColor("#4338ca"))
-            pal.setColor(group, QPalette.ColorRole.HighlightedText,  QColor("#ffffff"))
-            pal.setColor(group, QPalette.ColorRole.Window,           QColor("#080d18"))
-            pal.setColor(group, QPalette.ColorRole.WindowText,       QColor("#e2e8f0"))
-            pal.setColor(group, QPalette.ColorRole.Base,             QColor("#1a2540"))
-            pal.setColor(group, QPalette.ColorRole.AlternateBase,    QColor("#10172a"))
-            pal.setColor(group, QPalette.ColorRole.Text,             QColor("#e2e8f0"))
-            pal.setColor(group, QPalette.ColorRole.ButtonText,       QColor("#e2e8f0"))
-            pal.setColor(group, QPalette.ColorRole.Button,           QColor("#1a2540"))
-            pal.setColor(group, QPalette.ColorRole.Mid,              QColor("#3d5080"))
-            pal.setColor(group, QPalette.ColorRole.Dark,             QColor("#1e2d50"))
-            pal.setColor(group, QPalette.ColorRole.Shadow,           QColor("#080d18"))
-        app_instance.setPalette(pal)
+        # Theme: load theme.json and apply stylesheet + palette app-wide.
+        # Widgets styled through theme.bind() follow later theme changes automatically.
+        theme.load()
+        theme.apply_all(QApplication.instance())
 
         tabs = QTabWidget()
         self.setCentralWidget(tabs)
 
         # --- Buttons tab ---
         buttons_tab = QWidget()
-        buttons_tab.setStyleSheet("background-color: #080d18;")
+        theme.bind(buttons_tab, theme.PAGE_BG)
         btab_layout = QVBoxLayout(buttons_tab)
         btab_layout.setContentsMargins(12, 12, 12, 12)
         btab_layout.setSpacing(8)
@@ -1690,89 +1437,43 @@ class MainWindow(QMainWindow):
         layer_bar.setSpacing(6)
         self.layer_tabs = QTabBar()
         self.layer_tabs.setExpanding(False)
-        self.layer_tabs.setStyleSheet("""
-            QTabBar::tab {
-                background-color: #1a2540;
-                color: #64748b;
-                border: 1px solid #2d3f6e;
-                border-radius: 6px;
-                padding: 5px 16px;
-                margin-right: 3px;
-                font-weight: 600;
-                font-size: 12px;
-            }
-            QTabBar::tab:selected {
-                background-color: #3730a3;
-                color: #e0e7ff;
-                border-color: #4338ca;
-            }
-            QTabBar::tab:hover:!selected {
-                background-color: #243260;
-                color: #c7d2fe;
-                border-color: #4338ca;
-            }
-        """)
+        theme.bind(self.layer_tabs, theme.LAYER_TABS)
         self.layer_tabs.currentChanged.connect(self._on_layer_tab_changed)
         layer_bar.addWidget(self.layer_tabs)
 
-        _layer_btn_style = """
-            QPushButton {
-                background-color: #1a2540;
-                color: #94a3b8;
-                border: 1px solid #2d3f6e;
-                border-radius: 6px;
-                padding: 4px 10px;
-                font-size: 12px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background-color: #243260;
-                border-color: #6366f1;
-                color: #e0e7ff;
-            }
-            QPushButton:pressed {
-                background-color: #4338ca;
-                color: #ffffff;
-            }
-            QPushButton:disabled {
-                color: #334155;
-                border-color: #1e2d50;
-                background-color: #0f1525;
-            }
-        """
 
         new_layer_btn = QPushButton("+")
         new_layer_btn.setFixedWidth(34)
         new_layer_btn.setToolTip("New layer")
-        new_layer_btn.setStyleSheet(_layer_btn_style)
+        theme.bind(new_layer_btn, theme.LAYER_BUTTON)
         new_layer_btn.clicked.connect(self._new_layer)
         layer_bar.addWidget(new_layer_btn)
         rename_layer_btn = QPushButton("Rename")
         rename_layer_btn.setFixedWidth(72)
-        rename_layer_btn.setStyleSheet(_layer_btn_style)
+        theme.bind(rename_layer_btn, theme.LAYER_BUTTON)
         rename_layer_btn.clicked.connect(self._rename_layer)
         layer_bar.addWidget(rename_layer_btn)
         self.delete_layer_btn = QPushButton("Delete")
         self.delete_layer_btn.setFixedWidth(64)
-        self.delete_layer_btn.setStyleSheet(_layer_btn_style)
+        theme.bind(self.delete_layer_btn, theme.LAYER_BUTTON)
         self.delete_layer_btn.clicked.connect(self._delete_layer)
         layer_bar.addWidget(self.delete_layer_btn)
         self.match_layer_btn = QPushButton("Apps…")
         self.match_layer_btn.setFixedWidth(64)
         self.match_layer_btn.setToolTip("Apps that automatically activate this layer when focused")
-        self.match_layer_btn.setStyleSheet(_layer_btn_style)
+        theme.bind(self.match_layer_btn, theme.LAYER_BUTTON)
         self.match_layer_btn.clicked.connect(self._edit_layer_match)
         layer_bar.addWidget(self.match_layer_btn)
         export_layer_btn = QPushButton("Export…")
         export_layer_btn.setFixedWidth(72)
         export_layer_btn.setToolTip("Export this layer to a JSON file")
-        export_layer_btn.setStyleSheet(_layer_btn_style)
+        theme.bind(export_layer_btn, theme.LAYER_BUTTON)
         export_layer_btn.clicked.connect(self._export_layer)
         layer_bar.addWidget(export_layer_btn)
         import_layer_btn = QPushButton("Import…")
         import_layer_btn.setFixedWidth(72)
         import_layer_btn.setToolTip("Import a layer from a JSON file")
-        import_layer_btn.setStyleSheet(_layer_btn_style)
+        theme.bind(import_layer_btn, theme.LAYER_BUTTON)
         import_layer_btn.clicked.connect(self._import_layer)
         layer_bar.addWidget(import_layer_btn)
         layer_bar.addStretch()
@@ -1784,17 +1485,11 @@ class MainWindow(QMainWindow):
 
         # Speed editor area — dark card
         se_card = QWidget()
-        se_card.setStyleSheet("""
-            QWidget {
-                background-color: #0c1220;
-                border: 1px solid #1e2d50;
-                border-radius: 12px;
-            }
-        """)
+        theme.bind(se_card, theme.EDITOR_CARD)
         se_card_layout = QVBoxLayout(se_card)
         se_card_layout.setContentsMargins(8, 8, 8, 8)
         self.se_widget = SpeedEditorWidget(self._config)
-        self.se_widget.setStyleSheet("background: transparent; border: none;")
+        theme.bind(self.se_widget, theme.EDITOR_TRANSPARENT)
         self.se_widget.button_clicked.connect(self._select_button)
         self.se_widget.dial_clicked.connect(self._select_dial)
         se_card_layout.addWidget(self.se_widget)
@@ -1803,13 +1498,7 @@ class MainWindow(QMainWindow):
         # Right: action config panel — dark sidebar card
         self.action_panel = ActionPanel()
         self.action_panel.setFixedWidth(330)
-        self.action_panel.setStyleSheet("""
-            ActionPanel {
-                background-color: #10172a;
-                border: 1px solid #1e2d50;
-                border-radius: 12px;
-            }
-        """)
+        theme.bind(self.action_panel, theme.ACTION_PANEL)
         self.action_panel.setAutoFillBackground(False)
         self.action_panel.saved.connect(self.se_widget.refresh_all_styles)
         editor_row.addWidget(self.action_panel)
@@ -1830,7 +1519,7 @@ class MainWindow(QMainWindow):
 
         # --- Settings tab ---
         self.settings_tab = SettingsTab(self._config)
-        self.settings_tab.setStyleSheet("background-color: #080d18;")
+        theme.bind(self.settings_tab, theme.PAGE_BG)
         self.settings_tab.profile_loaded.connect(self._on_profile_loaded)
 
         # Overlay: fed by the existing button_pressed path (+ dial_turned for the jog wheel)
@@ -1839,8 +1528,10 @@ class MainWindow(QMainWindow):
         self.settings_tab.overlay_preview.connect(self._preview_overlay)
         self.signals.dial_turned.connect(self._on_dial_turned)
         tabs.addTab(self.settings_tab, "Settings")
+        tabs.addTab(ThemeTab(), "Theme")
 
         self.resize(1280, 700)
+        theme.add_listener(self._on_theme_changed)
 
         # Connect OBS on startup
         obs_cfg = self._config["obs"]
@@ -2016,6 +1707,18 @@ class MainWindow(QMainWindow):
         self._layer_id = cfg.DEFAULT_LAYER_ID
         self._populate_layer_tabs()
         self.layer_tabs.setCurrentIndex(0)
+
+    def _on_theme_changed(self):
+        self.se_widget.refresh_all_styles()
+        self.se_widget.theme_changed()
+        self.update()
+
+    def paintEvent(self, event):
+        # Window background: solid color, then the optional background image on top.
+        p = QPainter(self)
+        p.fillRect(self.rect(), theme.qc("bg"))
+        theme.paint_image(p, self.rect(), "window")
+        p.end()
 
     def _on_button_pressed(self, key_name: str, layer_id: str):
         self.se_widget.highlight(key_name)
